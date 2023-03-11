@@ -126,6 +126,37 @@ public class NeovimCodeEditor : IExternalCodeEditor
     }
   }
 
+  bool IsServerRunning()
+  {
+      // Start the child process.
+     Process p = new Process();
+     // Redirect the output stream of the child process.
+     p.StartInfo.UseShellExecute = false;
+     p.StartInfo.RedirectStandardOutput = true;
+     p.StartInfo.FileName = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.pyenv/shims/nvr";
+     p.StartInfo.Arguments = " --serverlist";
+     p.Start();
+
+     string output = p.StandardOutput.ReadToEnd();
+     string[] lines = output.Split(
+        new string[] { Environment.NewLine },
+        StringSplitOptions.None
+     );
+
+     foreach(String line in lines)
+     {
+         Debug.Log(line);
+         if(line == "/tmp/ntest")
+         {
+             return true;
+         }
+     }
+
+
+     p.WaitForExit();
+     return false;
+  }
+
   // The external code editor needs to handle the request to open a file.
   public bool OpenProject(string filePath = "", int line = -1, int column = -1)
   {
@@ -150,31 +181,22 @@ public class NeovimCodeEditor : IExternalCodeEditor
     if (column == -1)
       column = 0;
 
-    var arguments = $"--server /tmp/nvimsocket --remote {filePath}";
-    Debug.Log("arguments");
+    var app = "urxvt";
+    //var arguments = $"--server /tmp/nvimsocket --remote {filePath}";
+
+
+
+    app = "urxvt";
+    var arguments = $"-e nvim --listen /tmp/ntest \"{filePath}\"";
+
+    if(IsServerRunning())
+    {
+        app = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.pyenv/shims/nvr";
+        arguments = $" --remote-tab-wait-silent --servername /tmp/ntest \"{filePath}\"";
+    }
+
     Debug.Log(arguments);
 
-    // if (Arguments != DefaultArgument)
-    // {
-    //   arguments = _projectGeneration.ProjectDirectory != filePath
-    //       ? CodeEditor.ParseArgument(Arguments, filePath, line, column)
-    //       : _projectGeneration.ProjectDirectory;
-    // }
-    // else
-    // {
-    //   arguments = $@"""{_projectGeneration.ProjectDirectory}""";
-    //   if (_projectGeneration.ProjectDirectory != filePath && filePath.Length != 0)
-    //   {
-    //     arguments += $@" -g ""{filePath}"":{line}:{column}";
-    //   }
-    // }
-
-    // if (IsOSX)
-    // {
-    //   return OpenOSX(arguments);
-    // }
-
-    var app = DefaultApp;
     var process = new Process
     {
       StartInfo = new ProcessStartInfo
@@ -189,6 +211,9 @@ public class NeovimCodeEditor : IExternalCodeEditor
 
     process.Start();
     return true;
+
+
+
   }
 
   // Unity calls this function during initialization in order to sync the Project. This is different from SyncIfNeeded in that it does not get a list of changes.
